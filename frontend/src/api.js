@@ -1,7 +1,9 @@
 // frontend/src/api.js
 
 // URL de l’API (configurable via frontend/.env)
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:4000/api";
+//const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:4000/api";
+const API = "/api";
+
 
 // Petit helper pour remonter des erreurs lisibles
 async function fetchJson(url, opts) {

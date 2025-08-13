@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ProductForm from "./components/ProductForm";
 import {
   getProducts,
   getExpiringProducts,
@@ -7,9 +8,8 @@ import {
   deleteProduct,
 } from "./api";
 
-// Petit utilitaire d’affichage prix
-const fmt = (n) =>
-  Number(n ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 });
+// Format prix
+const fmt = (n) => Number(n ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 });
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -19,7 +19,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Charger la liste (avec recherche/filtre)
+  // Modal formulaire
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+
   async function load() {
     setLoading(true);
     setError("");
@@ -34,18 +37,14 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [query, category]);
+  useEffect(() => { load(); }, [query, category]);
 
-  // Charger les alertes une fois
   useEffect(() => {
     getExpiringProducts()
       .then((d) => setExpiring(Array.isArray(d) ? d : []))
       .catch((e) => console.warn("Alertes:", e.message));
   }, []);
 
-  // Stats rapides
   const stats = useMemo(() => {
     const totalStock = products.reduce((s, p) => s + (p.quantite_boites || 0), 0);
     const exp = products.filter(
@@ -54,15 +53,23 @@ export default function App() {
     return { totalStock, exp };
   }, [products]);
 
-  // CRUD minimal (tu peux brancher sur un vrai formulaire ensuite)
-  async function handleDelete(id) {
+  // Actions CRUD
+  async function onCreate(data) {
+    await createProduct(data);
+    setShowForm(false);
+    setEditing(null);
+    load();
+  }
+  async function onUpdate(id, data) {
+    await updateProduct(id, data);
+    setShowForm(false);
+    setEditing(null);
+    load();
+  }
+  async function onDelete(id) {
     if (!confirm("Supprimer ce produit ?")) return;
-    try {
-      await deleteProduct(id);
-      await load();
-    } catch (e) {
-      alert(e.message);
-    }
+    await deleteProduct(id);
+    load();
   }
 
   return (
@@ -72,13 +79,9 @@ export default function App() {
         <div className="max-w-6xl mx-auto p-4 flex gap-4 items-center">
           <div className="text-2xl font-extrabold text-teal-700">ParmaStock</div>
           <nav className="hidden md:flex gap-6 text-sm">
-            {["Accueil", "Produits", "Fournisseurs", "Commandes", "Expiration"].map(
-              (x, i) => (
-                <a key={i} className="hover:text-teal-700" href="#">
-                  {x}
-                </a>
-              )
-            )}
+            {["Accueil", "Produits", "Fournisseurs", "Commandes", "Expiration"].map((x, i) => (
+              <a key={i} className="hover:text-teal-700" href="#">{x}</a>
+            ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <input
@@ -96,61 +99,59 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <h1 className="text-3xl font-extrabold">Tableau de bord</h1>
           <p className="text-teal-100">
-            Stock total : <b>{stats.totalStock}</b> boîtes • Proches d’expiration :{" "}
-            <b>{stats.exp}</b>
+            Stock total : <b>{stats.totalStock}</b> boîtes • Proches d’expiration : <b>{stats.exp}</b>
           </p>
         </div>
       </section>
 
       {/* Contenu */}
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        {/* Filtres */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Catégorie :</span>
-          {[
-            ["", "Toutes"],
-            ["MEDICAMENT", "Médicaments"],
-            ["PARAPHARMACIE", "Parapharmacie"],
-          ].map(([val, label]) => (
-            <button
-              key={val}
-              className={`px-3 py-1.5 rounded-full text-sm border ${
-                category === val ? "bg-teal-600 text-white" : "bg-white"
-              }`}
-              onClick={() => setCategory(val)}
-            >
-              {label}
-            </button>
-          ))}
+
+        {/* Filtres + Ajouter */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Catégorie :</span>
+            {[
+              ["", "Toutes"],
+              ["MEDICAMENT", "Médicaments"],
+              ["PARAPHARMACIE", "Parapharmacie"],
+            ].map(([val, label]) => (
+              <button
+                key={val}
+                className={`px-3 py-1.5 rounded-full text-sm border ${category === val ? "bg-teal-600 text-white" : "bg-white"}`}
+                onClick={() => setCategory(val)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            className="px-3 py-2 rounded-xl bg-teal-600 text-white"
+            onClick={() => { setEditing(null); setShowForm(true); }}
+          >
+            + Ajouter un produit
+          </button>
         </div>
 
         {/* Alertes d’expiration */}
         {expiring.length > 0 && (
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <div className="font-semibold mb-2">
-              ⚠ Produits à moins de 6 mois de la date d’expiration
-            </div>
+            <div className="font-semibold mb-2">⚠ Produits à moins de 6 mois de l’expiration</div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-yellow-100">
                     {["Nom", "Qté", "Expiration", "Jours restants"].map((h) => (
-                      <th key={h} className="text-left px-3 py-2">
-                        {h}
-                      </th>
+                      <th key={h} className="text-left px-3 py-2">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {expiring.map((p) => (
                     <tr key={p.id} className="border-t">
-                      <td className="px-3 py-2 font-medium">
-                        {p.nom_commercial || p.nom}
-                      </td>
+                      <td className="px-3 py-2 font-medium">{p.nom_commercial || p.nom}</td>
                       <td className="px-3 py-2">{p.quantite_boites ?? p.quantite}</td>
-                      <td className="px-3 py-2">
-                        {new Date(p.date_expiration).toLocaleDateString("fr-FR")}
-                      </td>
+                      <td className="px-3 py-2">{new Date(p.date_expiration).toLocaleDateString("fr-FR")}</td>
                       <td className="px-3 py-2 font-semibold">{p.jours_restants}</td>
                     </tr>
                   ))}
@@ -160,7 +161,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Liste des produits */}
+        {/* Tableau des produits */}
         <div className="rounded-2xl border bg-white overflow-x-auto">
           {loading ? (
             <div className="p-4">Chargement…</div>
@@ -171,23 +172,10 @@ export default function App() {
               <thead className="bg-gray-50">
                 <tr>
                   {[
-                    "Nom commercial",
-                    "Catégorie",
-                    "DCI",
-                    "Dosage",
-                    "Forme",
-                    "Nb comp.",
-                    "PPA",
-                    "SHP",
-                    "Qté boîtes",
-                    "Lot",
-                    "Expiration",
-                    "Jours",
-                    "Actions",
+                    "Nom commercial","Catégorie","DCI","Dosage","Forme","Nb comp.",
+                    "PPA","SHP","Qté boîtes","Lot","Expiration","Jours","Actions",
                   ].map((h) => (
-                    <th key={h} className="text-left px-4 py-2 font-semibold">
-                      {h}
-                    </th>
+                    <th key={h} className="text-left px-4 py-2 font-semibold">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -205,41 +193,35 @@ export default function App() {
                       <td className="px-4 py-2">{p.forme}</td>
                       <td className="px-4 py-2">{p.nb_comprimes ?? "-"}</td>
                       <td className="px-4 py-2">{fmt(p.ppa)} DA</td>
-                      <td className="px-4 py-2">
-                        {p.shp == null ? "-" : `${fmt(p.shp)} DA`}
-                      </td>
+                      <td className="px-4 py-2">{p.shp == null ? "-" : `${fmt(p.shp)} DA`}</td>
                       <td className="px-4 py-2">{p.quantite_boites}</td>
                       <td className="px-4 py-2">{p.numero_lot}</td>
-                      <td className="px-4 py-2">
-                        {new Date(p.date_expiration).toLocaleDateString("fr-FR")}
-                      </td>
-                      <td
-                        className={`px-4 py-2 ${
-                          dead
-                            ? "text-red-700 font-semibold"
-                            : danger
-                            ? "text-orange-600 font-semibold"
-                            : ""
-                        }`}
-                      >
+                      <td className="px-4 py-2">{new Date(p.date_expiration).toLocaleDateString("fr-FR")}</td>
+                      <td className={`px-4 py-2 ${dead ? "text-red-700 font-semibold" : danger ? "text-orange-600 font-semibold" : ""}`}>
                         {dead ? "Périmé" : `${rem} j`}
                       </td>
                       <td className="px-4 py-2">
-                        <button
-                          className="px-2 py-1 rounded border text-xs text-red-600"
-                          onClick={() => handleDelete(p.id)}
-                        >
-                          Supprimer
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            className="px-2 py-1 rounded border text-xs"
+                            onClick={() => { setEditing(p); setShowForm(true); }}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className="px-2 py-1 rounded border text-xs text-red-600"
+                            onClick={() => onDelete(p.id)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
                 {!products.length && (
                   <tr>
-                    <td className="px-4 py-4 text-gray-500" colSpan={13}>
-                      Aucun produit.
-                    </td>
+                    <td className="px-4 py-4 text-gray-500" colSpan={13}>Aucun produit.</td>
                   </tr>
                 )}
               </tbody>
@@ -247,6 +229,21 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Modale Formulaire */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setShowForm(false); setEditing(null); }} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-[94vw] p-6">
+            <h3 className="text-xl font-bold mb-4">{editing ? "Modifier le produit" : "Ajouter un produit"}</h3>
+            <ProductForm
+              initial={editing}
+              onCancel={() => { setShowForm(false); setEditing(null); }}
+              onSubmit={(data) => editing ? onUpdate(editing.id, data) : onCreate(data)}
+            />
+          </div>
+        </div>
+      )}
 
       <footer className="py-8 text-center text-xs text-gray-500">
         © {new Date().getFullYear()} ParmaStock
