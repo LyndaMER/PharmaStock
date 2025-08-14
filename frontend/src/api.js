@@ -1,58 +1,44 @@
 // frontend/src/api.js
-
-// URL de l’API (configurable via frontend/.env)
-//const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:4000/api";
+// Utilise le proxy Vite (/api). Voir vite.config.js (proxy -> 127.0.0.1:4000)
 const API = "/api";
 
-
-// Petit helper pour remonter des erreurs lisibles
-async function fetchJson(url, opts) {
-  const res = await fetch(url, opts);
-  const text = await res.text();
+// Helpers
+async function http(path, opts = {}) {
+  const res = await fetch(`${API}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText} – ${text}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(text || res.statusText);
   }
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Réponse pas en JSON
-    return text;
-  }
+  return res.json();
 }
 
-/** Récupérer la liste des produits (optionnel: q et category) */
-export async function getProducts({ q = "", category = "" } = {}) {
+// Produits
+export async function getProducts(params = {}) {
   const qs = new URLSearchParams();
-  if (q) qs.set("q", q);
-  if (category) qs.set("category", category);
-  const suffix = qs.toString() ? `?${qs}` : "";
-  return fetchJson(`${API}/products${suffix}`);
+  if (params.q) qs.set("q", params.q);
+  if (params.category) qs.set("category", params.category);
+  const s = qs.toString() ? `?${qs}` : "";
+  return http(`/products${s}`);
 }
-
-/** Récupérer les produits qui expirent dans <= 6 mois */
-export async function getExpiringProducts() {
-  return fetchJson(`${API}/alerts/expiring`);
+export async function createProduct(data) {
+  return http(`/products`, { method: "POST", body: JSON.stringify(data) });
 }
-
-/** Créer un produit */
-export async function createProduct(product) {
-  return fetchJson(`${API}/products`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
+export async function updateProduct(id, data) {
+  return http(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) });
 }
-
-/** Mettre à jour un produit */
-export async function updateProduct(id, product) {
-  return fetchJson(`${API}/products/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
-}
-
-/** Supprimer un produit */
 export async function deleteProduct(id) {
-  return fetchJson(`${API}/products/${id}`, { method: "DELETE" });
+  return http(`/products/${id}`, { method: "DELETE" });
+}
+
+// Alertes
+export async function getExpiringProducts() {
+  return http(`/alerts/expiring`);
+}
+
+// Stats (exemple backend)
+export async function getOverview() {
+  return http(`/stats/overview`);
 }

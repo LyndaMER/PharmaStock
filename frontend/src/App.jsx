@@ -1,253 +1,76 @@
-import { useEffect, useMemo, useState } from "react";
-import ProductForm from "./components/ProductForm";
-import {
-  getProducts,
-  getExpiringProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-} from "./api";
+// frontend/src/App.jsx
+import { Link, NavLink, Routes, Route } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
 
-// Format prix
-const fmt = (n) => Number(n ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 });
+// Image de bannière (URL fournie)
+const HERO_URL =
+  "https://nell-associes.com/wp-content/uploads/shutterstock_1467369743-min.jpg";
 
 export default function App() {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState(""); // "", "MEDICAMENT", "PARAPHARMACIE"
-  const [products, setProducts] = useState([]);
-  const [expiring, setExpiring] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // Modal formulaire
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await getProducts({ q: query, category });
-      setProducts(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error(e);
-      setError(`Impossible de charger les produits (${e.message})`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { load(); }, [query, category]);
-
-  useEffect(() => {
-    getExpiringProducts()
-      .then((d) => setExpiring(Array.isArray(d) ? d : []))
-      .catch((e) => console.warn("Alertes:", e.message));
-  }, []);
-
-  const stats = useMemo(() => {
-    const totalStock = products.reduce((s, p) => s + (p.quantite_boites || 0), 0);
-    const exp = products.filter(
-      (p) => (p.jours_restants ?? 99999) >= 0 && (p.jours_restants ?? 99999) <= 183
-    ).length;
-    return { totalStock, exp };
-  }, [products]);
-
-  // Actions CRUD
-  async function onCreate(data) {
-    await createProduct(data);
-    setShowForm(false);
-    setEditing(null);
-    load();
-  }
-  async function onUpdate(id, data) {
-    await updateProduct(id, data);
-    setShowForm(false);
-    setEditing(null);
-    load();
-  }
-  async function onDelete(id) {
-    if (!confirm("Supprimer ce produit ?")) return;
-    await deleteProduct(id);
-    load();
-  }
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto p-4 flex gap-4 items-center">
-          <div className="text-2xl font-extrabold text-teal-700">ParmaStock</div>
-          <nav className="hidden md:flex gap-6 text-sm">
-            {["Accueil", "Produits", "Fournisseurs", "Commandes", "Expiration"].map((x, i) => (
-              <a key={i} className="hover:text-teal-700" href="#">{x}</a>
-            ))}
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      {/* Header fixé au-dessus de tout */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto p-4 flex items-center gap-6">
+
+
+          <nav className="flex gap-5 text-sm">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                "px-1 py-0.5 transition " +
+                (isActive ? "text-teal-700 font-semibold" : "text-gray-700 hover:text-teal-700")
+              }
+            >
+              Accueil
+            </NavLink>
+
+            <NavLink
+              to="/produits"
+              className={({ isActive }) =>
+                "px-1 py-0.5 transition " +
+                (isActive ? "text-teal-700 font-semibold" : "text-gray-700 hover:text-teal-700")
+              }
+            >
+              Produits
+            </NavLink>
+
+            {/* Placeholders pour plus tard */}
+            <span className="text-gray-300 select-none">|</span>
+            <a className="hover:text-teal-700 text-gray-700" href="#">Fournisseurs</a>
+            <a className="hover:text-teal-700 text-gray-700" href="#">Commandes</a>
+            <a className="hover:text-teal-700 text-gray-700" href="#">Expiration</a>
           </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un produit…"
-              className="w-64 border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-600"
-            />
-          </div>
         </div>
       </header>
 
-      {/* Bandeau */}
-      <section className="bg-gradient-to-r from-teal-700 to-teal-500 text-white">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <h1 className="text-3xl font-extrabold">Tableau de bord</h1>
-          <p className="text-teal-100">
-            Stock total : <b>{stats.totalStock}</b> boîtes • Proches d’expiration : <b>{stats.exp}</b>
-          </p>
+      {/* BANNIÈRE IMAGE (remplace la loupe) */}
+      <section
+        className="relative w-full overflow-hidden"
+        style={{
+          backgroundImage: `url(${HERO_URL})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          height: "220px", // ajuste si tu veux: 260px/300px
+        }}
+      >
+        {/* Voile pour lisibilité du texte */}
+        <div className="absolute inset-0 bg-black/30" />
+        {/* Titre à droite comme dans ton Figma */}
+        <div className="relative max-w-6xl mx-auto h-full px-4 flex items-end justify-end pb-5">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
+            ParmaStock
+          </h1>
         </div>
       </section>
 
-      {/* Contenu */}
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-
-        {/* Filtres + Ajouter */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Catégorie :</span>
-            {[
-              ["", "Toutes"],
-              ["MEDICAMENT", "Médicaments"],
-              ["PARAPHARMACIE", "Parapharmacie"],
-            ].map(([val, label]) => (
-              <button
-                key={val}
-                className={`px-3 py-1.5 rounded-full text-sm border ${category === val ? "bg-teal-600 text-white" : "bg-white"}`}
-                onClick={() => setCategory(val)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            className="px-3 py-2 rounded-xl bg-teal-600 text-white"
-            onClick={() => { setEditing(null); setShowForm(true); }}
-          >
-            + Ajouter un produit
-          </button>
-        </div>
-
-        {/* Alertes d’expiration */}
-        {expiring.length > 0 && (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <div className="font-semibold mb-2">⚠ Produits à moins de 6 mois de l’expiration</div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-yellow-100">
-                    {["Nom", "Qté", "Expiration", "Jours restants"].map((h) => (
-                      <th key={h} className="text-left px-3 py-2">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {expiring.map((p) => (
-                    <tr key={p.id} className="border-t">
-                      <td className="px-3 py-2 font-medium">{p.nom_commercial || p.nom}</td>
-                      <td className="px-3 py-2">{p.quantite_boites ?? p.quantite}</td>
-                      <td className="px-3 py-2">{new Date(p.date_expiration).toLocaleDateString("fr-FR")}</td>
-                      <td className="px-3 py-2 font-semibold">{p.jours_restants}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Tableau des produits */}
-        <div className="rounded-2xl border bg-white overflow-x-auto">
-          {loading ? (
-            <div className="p-4">Chargement…</div>
-          ) : error ? (
-            <div className="p-4 text-red-600">{error}</div>
-          ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  {[
-                    "Nom commercial","Catégorie","DCI","Dosage","Forme","Nb comp.",
-                    "PPA","SHP","Qté boîtes","Lot","Expiration","Jours","Actions",
-                  ].map((h) => (
-                    <th key={h} className="text-left px-4 py-2 font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => {
-                  const rem = p.jours_restants ?? 999999;
-                  const dead = rem < 0;
-                  const danger = rem <= 183 && rem >= 0;
-                  return (
-                    <tr key={p.id} className="border-t">
-                      <td className="px-4 py-2 font-medium">{p.nom_commercial}</td>
-                      <td className="px-4 py-2">{p.categorie}</td>
-                      <td className="px-4 py-2">{p.dci ?? "-"}</td>
-                      <td className="px-4 py-2">{p.dosage ?? "-"}</td>
-                      <td className="px-4 py-2">{p.forme}</td>
-                      <td className="px-4 py-2">{p.nb_comprimes ?? "-"}</td>
-                      <td className="px-4 py-2">{fmt(p.ppa)} DA</td>
-                      <td className="px-4 py-2">{p.shp == null ? "-" : `${fmt(p.shp)} DA`}</td>
-                      <td className="px-4 py-2">{p.quantite_boites}</td>
-                      <td className="px-4 py-2">{p.numero_lot}</td>
-                      <td className="px-4 py-2">{new Date(p.date_expiration).toLocaleDateString("fr-FR")}</td>
-                      <td className={`px-4 py-2 ${dead ? "text-red-700 font-semibold" : danger ? "text-orange-600 font-semibold" : ""}`}>
-                        {dead ? "Périmé" : `${rem} j`}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex gap-2">
-                          <button
-                            className="px-2 py-1 rounded border text-xs"
-                            onClick={() => { setEditing(p); setShowForm(true); }}
-                          >
-                            Modifier
-                          </button>
-                          <button
-                            className="px-2 py-1 rounded border text-xs text-red-600"
-                            onClick={() => onDelete(p.id)}
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!products.length && (
-                  <tr>
-                    <td className="px-4 py-4 text-gray-500" colSpan={13}>Aucun produit.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
-
-      {/* Modale Formulaire */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { setShowForm(false); setEditing(null); }} />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-[94vw] p-6">
-            <h3 className="text-xl font-bold mb-4">{editing ? "Modifier le produit" : "Ajouter un produit"}</h3>
-            <ProductForm
-              initial={editing}
-              onCancel={() => { setShowForm(false); setEditing(null); }}
-              onSubmit={(data) => editing ? onUpdate(editing.id, data) : onCreate(data)}
-            />
-          </div>
-        </div>
-      )}
-
-      <footer className="py-8 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} ParmaStock
-      </footer>
+      {/* Routes : Accueil et Produits -> même page (Dashboard) */}
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/produits" element={<Dashboard />} />
+      </Routes>
     </div>
   );
 }
